@@ -1,0 +1,8 @@
+{
+  "Baseline (Clean)": 0.746,
+  "Rotation (+25 deg tilt)": 0.6825,
+  "Rotation (-25 deg tilt)": 0.7143,
+  "Low Light (0.45x exposure)": 0.6984,
+  "Partial Occlusion (25% center)": 0.6825,
+  "Camera Defocus Blur (9x9)": 0.6667
+}

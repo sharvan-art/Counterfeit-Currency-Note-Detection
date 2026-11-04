@@ -1,0 +1,185 @@
+{
+  "config_1_resnet18_frozen": {
+    "config_name": "config_1_resnet18_frozen",
+    "backbone": "resnet18",
+    "freeze_backbone": true,
+    "test_auth_accuracy": 0.5873,
+    "test_precision": 0.561,
+    "test_recall": 0.7419,
+    "test_f1": 0.6389,
+    "confusion_matrix": [
+      [
+        14,
+        18
+      ],
+      [
+        8,
+        23
+      ]
+    ],
+    "total_training_time_sec": 61.12,
+    "history": {
+      "epoch": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "train_loss": [
+        1.6335,
+        1.3887,
+        1.2122,
+        1.111
+      ],
+      "val_loss": [
+        1.3746,
+        1.0398,
+        0.9045,
+        0.8918
+      ],
+      "val_auth_acc": [
+        0.619,
+        0.746,
+        0.7143,
+        0.6825
+      ],
+      "val_denom_acc": [
+        0.746,
+        0.8889,
+        0.9206,
+        0.9524
+      ],
+      "elapsed_time_sec": [
+        15.16,
+        29.72,
+        44.23,
+        58.59
+      ]
+    },
+    "checkpoint_path": "models\\classification\\config_1_resnet18_frozen_best.pt"
+  },
+  "config_2_resnet18_layerwise": {
+    "config_name": "config_2_resnet18_layerwise",
+    "backbone": "resnet18",
+    "freeze_backbone": false,
+    "test_auth_accuracy": 0.746,
+    "test_precision": 0.7273,
+    "test_recall": 0.7742,
+    "test_f1": 0.75,
+    "confusion_matrix": [
+      [
+        23,
+        9
+      ],
+      [
+        7,
+        24
+      ]
+    ],
+    "total_training_time_sec": 165.41,
+    "history": {
+      "epoch": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "train_loss": [
+        1.5679,
+        1.2403,
+        1.006,
+        0.8378,
+        0.7765
+      ],
+      "val_loss": [
+        1.249,
+        0.8685,
+        0.7001,
+        0.6502,
+        0.6799
+      ],
+      "val_auth_acc": [
+        0.6032,
+        0.7143,
+        0.7302,
+        0.7619,
+        0.7619
+      ],
+      "val_denom_acc": [
+        0.7619,
+        0.9365,
+        1.0,
+        0.9841,
+        0.9841
+      ],
+      "elapsed_time_sec": [
+        33.5,
+        66.8,
+        99.38,
+        131.41,
+        163.02
+      ]
+    },
+    "checkpoint_path": "models\\classification\\config_2_resnet18_layerwise_best.pt"
+  },
+  "config_3_effnet_unfrozen": {
+    "config_name": "config_3_effnet_unfrozen",
+    "backbone": "efficientnet_b0",
+    "freeze_backbone": false,
+    "test_auth_accuracy": 0.6825,
+    "test_precision": 0.641,
+    "test_recall": 0.8065,
+    "test_f1": 0.7143,
+    "confusion_matrix": [
+      [
+        18,
+        14
+      ],
+      [
+        6,
+        25
+      ]
+    ],
+    "total_training_time_sec": 157.79,
+    "history": {
+      "epoch": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "train_loss": [
+        1.5726,
+        1.2832,
+        1.0462,
+        0.8962
+      ],
+      "val_loss": [
+        1.3444,
+        0.9988,
+        0.8778,
+        0.839
+      ],
+      "val_auth_acc": [
+        0.5556,
+        0.619,
+        0.619,
+        0.6032
+      ],
+      "val_denom_acc": [
+        0.8254,
+        0.9683,
+        1.0,
+        1.0
+      ],
+      "elapsed_time_sec": [
+        39.29,
+        78.29,
+        116.86,
+        155.79
+      ]
+    },
+    "checkpoint_path": "models\\classification\\config_3_effnet_unfrozen_best.pt"
+  }
+}

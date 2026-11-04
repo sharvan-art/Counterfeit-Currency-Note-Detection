@@ -1,0 +1,371 @@
+[
+  {
+    "id": "SCAN_20261104_145020_b83d85",
+    "timestamp": "2026-11-04 14:50:20",
+    "date_label": "04 Nov 2026, 02:50 PM",
+    "verdict": "GENUINE",
+    "authenticity_score": 0.764,
+    "verdict_confidence": 0.764,
+    "predicted_denomination": 500,
+    "denomination_confidence": 0.42778947949409485,
+    "color": "#10B981",
+    "forensic_flags": [],
+    "feature_summary": [
+      {
+        "feature_name": "security_thread",
+        "status": "Genuine",
+        "score": 0.88,
+        "observation": "Verified: Continuous metallic ribbon (55% continuity at 56.7% width)"
+      },
+      {
+        "feature_name": "watermark",
+        "status": "Genuine",
+        "score": 0.75,
+        "observation": "Authentic portrait watermark & electrotype verified"
+      },
+      {
+        "feature_name": "number_panel",
+        "status": "Genuine",
+        "score": 0.72,
+        "observation": "Ascending font alignment verified"
+      },
+      {
+        "feature_name": "latent_image",
+        "status": "Genuine",
+        "score": 0.708,
+        "observation": "Intaglio relief pattern verified"
+      }
+    ],
+    "raw_img_path": "C:\\Projects\\Antigravity\\Deep Learning\\currency-detector\\data\\scan_history\\images\\SCAN_20261104_145020_b83d85_raw.jpg",
+    "annotated_img_path": "C:\\Projects\\Antigravity\\Deep Learning\\currency-detector\\data\\scan_history\\images\\SCAN_20261104_145020_b83d85_annotated.jpg",
+    "gradcam_img_path": "C:\\Projects\\Antigravity\\Deep Learning\\currency-detector\\data\\scan_history\\images\\SCAN_20261104_145020_b83d85_gradcam.jpg"
+  },
+  {
+    "id": "SCAN_20261104_145003_631954",
+    "timestamp": "2026-11-04 14:50:03",
+    "date_label": "04 Nov 2026, 02:50 PM",
+    "verdict": "GENUINE",
+    "authenticity_score": 0.778,
+    "verdict_confidence": 0.778,
+    "predicted_denomination": 500,
+    "denomination_confidence": 0.9566355347633362,
+    "color": "#10B981",
+    "forensic_flags": [],
+    "feature_summary": [
+      {
+        "feature_name": "security_thread",
+        "status": "Genuine",
+        "score": 0.88,
+        "observation": "Verified: Continuous metallic ribbon (80% continuity at 49.5% width)"
+      },
+      {
+        "feature_name": "watermark",
+        "status": "Genuine",
+        "score": 0.75,
+        "observation": "Authentic portrait watermark & electrotype verified"
+      },
+      {
+        "feature_name": "number_panel",
+        "status": "Genuine",
+        "score": 0.781,
+        "observation": "Ascending font alignment verified"
+      },
+      {
+        "feature_name": "latent_image",
+        "status": "Genuine",
+        "score": 0.7,
+        "observation": "Intaglio relief pattern verified"
+      }
+    ],
+    "raw_img_path": "C:\\Projects\\Antigravity\\Deep Learning\\currency-detector\\data\\scan_history\\images\\SCAN_20261104_145003_631954_raw.jpg",
+    "annotated_img_path": "C:\\Projects\\Antigravity\\Deep Learning\\currency-detector\\data\\scan_history\\images\\SCAN_20261104_145003_631954_annotated.jpg",
+    "gradcam_img_path": "C:\\Projects\\Antigravity\\Deep Learning\\currency-detector\\data\\scan_history\\images\\SCAN_20261104_145003_631954_gradcam.jpg"
+  },
+  {
+    "id": "SCAN_20261104_144625_ef6cc6",
+    "timestamp": "2026-11-04 14:46:25",
+    "date_label": "04 Nov 2026, 02:46 PM",
+    "verdict": "GENUINE",
+    "authenticity_score": 0.762,
+    "verdict_confidence": 0.762,
+    "predicted_denomination": 500,
+    "denomination_confidence": 0.9027195572853088,
+    "color": "#10B981",
+    "forensic_flags": [],
+    "feature_summary": [
+      {
+        "feature_name": "security_thread",
+        "status": "Genuine",
+        "score": 0.88,
+        "observation": "Verified: Continuous metallic ribbon (96% continuity at 49.7% width)"
+      },
+      {
+        "feature_name": "watermark",
+        "status": "Genuine",
+        "score": 0.75,
+        "observation": "Authentic portrait watermark & electrotype verified"
+      },
+      {
+        "feature_name": "number_panel",
+        "status": "Genuine",
+        "score": 0.72,
+        "observation": "Ascending font alignment verified"
+      },
+      {
+        "feature_name": "latent_image",
+        "status": "Genuine",
+        "score": 0.7,
+        "observation": "Intaglio relief pattern verified"
+      }
+    ],
+    "raw_img_path": "C:\\Projects\\Antigravity\\Deep Learning\\currency-detector\\data\\scan_history\\images\\SCAN_20261104_144625_ef6cc6_raw.jpg",
+    "annotated_img_path": "C:\\Projects\\Antigravity\\Deep Learning\\currency-detector\\data\\scan_history\\images\\SCAN_20261104_144625_ef6cc6_annotated.jpg",
+    "gradcam_img_path": "C:\\Projects\\Antigravity\\Deep Learning\\currency-detector\\data\\scan_history\\images\\SCAN_20261104_144625_ef6cc6_gradcam.jpg"
+  },
+  {
+    "id": "SCAN_20261104_144558_d3a7c6",
+    "timestamp": "2026-11-04 14:45:58",
+    "date_label": "04 Nov 2026, 02:45 PM",
+    "verdict": "GENUINE",
+    "authenticity_score": 0.814,
+    "verdict_confidence": 0.814,
+    "predicted_denomination": 500,
+    "denomination_confidence": 0.49186891317367554,
+    "color": "#10B981",
+    "forensic_flags": [],
+    "feature_summary": [
+      {
+        "feature_name": "security_thread",
+        "status": "Genuine",
+        "score": 0.88,
+        "observation": "Verified: Continuous metallic ribbon (66% continuity at 54.2% width)"
+      },
+      {
+        "feature_name": "watermark",
+        "status": "Genuine",
+        "score": 0.75,
+        "observation": "Authentic portrait watermark & electrotype verified"
+      },
+      {
+        "feature_name": "number_panel",
+        "status": "Genuine",
+        "score": 0.72,
+        "observation": "Ascending font alignment verified"
+      },
+      {
+        "feature_name": "latent_image",
+        "status": "Genuine",
+        "score": 0.907,
+        "observation": "Intaglio relief pattern verified"
+      }
+    ],
+    "raw_img_path": "C:\\Projects\\Antigravity\\Deep Learning\\currency-detector\\data\\scan_history\\images\\SCAN_20261104_144558_d3a7c6_raw.jpg",
+    "annotated_img_path": "C:\\Projects\\Antigravity\\Deep Learning\\currency-detector\\data\\scan_history\\images\\SCAN_20261104_144558_d3a7c6_annotated.jpg",
+    "gradcam_img_path": "C:\\Projects\\Antigravity\\Deep Learning\\currency-detector\\data\\scan_history\\images\\SCAN_20261104_144558_d3a7c6_gradcam.jpg"
+  },
+  {
+    "id": "SCAN_20261104_144335_87ccfd",
+    "timestamp": "2026-11-04 14:43:35",
+    "date_label": "04 Nov 2026, 02:43 PM",
+    "verdict": "GENUINE",
+    "authenticity_score": 0.81,
+    "verdict_confidence": 0.81,
+    "predicted_denomination": 200,
+    "denomination_confidence": 0.7023571133613586,
+    "color": "#10B981",
+    "forensic_flags": [],
+    "feature_summary": [
+      {
+        "feature_name": "security_thread",
+        "status": "Genuine",
+        "score": 0.88,
+        "observation": "Verified: Continuous metallic ribbon (93% continuity at 55.4% width)"
+      },
+      {
+        "feature_name": "watermark",
+        "status": "Genuine",
+        "score": 0.76,
+        "observation": "Authentic portrait watermark & electrotype verified"
+      },
+      {
+        "feature_name": "number_panel",
+        "status": "Genuine",
+        "score": 0.72,
+        "observation": "Ascending font alignment verified"
+      },
+      {
+        "feature_name": "latent_image",
+        "status": "Genuine",
+        "score": 0.879,
+        "observation": "Intaglio relief pattern verified"
+      }
+    ],
+    "raw_img_path": "C:\\Projects\\Antigravity\\Deep Learning\\currency-detector\\data\\scan_history\\images\\SCAN_20261104_144335_87ccfd_raw.jpg",
+    "annotated_img_path": "C:\\Projects\\Antigravity\\Deep Learning\\currency-detector\\data\\scan_history\\images\\SCAN_20261104_144335_87ccfd_annotated.jpg",
+    "gradcam_img_path": "C:\\Projects\\Antigravity\\Deep Learning\\currency-detector\\data\\scan_history\\images\\SCAN_20261104_144335_87ccfd_gradcam.jpg"
+  },
+  {
+    "id": "SCAN_20261103_233222_ea8e60",
+    "timestamp": "2026-11-03 23:32:22",
+    "date_label": "03 Nov 2026, 11:32 PM",
+    "verdict": "GENUINE",
+    "authenticity_score": 0.81,
+    "verdict_confidence": 0.81,
+    "predicted_denomination": 200,
+    "denomination_confidence": 0.7023571133613586,
+    "color": "#10B981",
+    "forensic_flags": [],
+    "feature_summary": [
+      {
+        "feature_name": "security_thread",
+        "status": "Genuine",
+        "score": 0.88,
+        "observation": "Verified: Continuous metallic ribbon (93% continuity at 55.4% width)"
+      },
+      {
+        "feature_name": "watermark",
+        "status": "Genuine",
+        "score": 0.76,
+        "observation": "Authentic portrait watermark & electrotype verified"
+      },
+      {
+        "feature_name": "number_panel",
+        "status": "Genuine",
+        "score": 0.72,
+        "observation": "Ascending font alignment verified"
+      },
+      {
+        "feature_name": "latent_image",
+        "status": "Genuine",
+        "score": 0.879,
+        "observation": "Intaglio relief pattern verified"
+      }
+    ],
+    "raw_img_path": "C:\\Projects\\Antigravity\\Deep Learning\\currency-detector\\data\\scan_history\\images\\SCAN_20261103_233222_ea8e60_raw.jpg",
+    "annotated_img_path": "C:\\Projects\\Antigravity\\Deep Learning\\currency-detector\\data\\scan_history\\images\\SCAN_20261103_233222_ea8e60_annotated.jpg",
+    "gradcam_img_path": "C:\\Projects\\Antigravity\\Deep Learning\\currency-detector\\data\\scan_history\\images\\SCAN_20261103_233222_ea8e60_gradcam.jpg"
+  },
+  {
+    "id": "SCAN_20261103_230615_802d6f",
+    "timestamp": "2026-11-03 23:06:15",
+    "date_label": "03 Nov 2026, 11:06 PM",
+    "verdict": "GENUINE",
+    "authenticity_score": 0.81,
+    "verdict_confidence": 0.81,
+    "predicted_denomination": 200,
+    "denomination_confidence": 0.7023571133613586,
+    "color": "#10B981",
+    "forensic_flags": [],
+    "feature_summary": [
+      {
+        "feature_name": "security_thread",
+        "status": "Genuine",
+        "score": 0.88,
+        "observation": "Verified: Continuous metallic ribbon (93% continuity at 55.4% width)"
+      },
+      {
+        "feature_name": "watermark",
+        "status": "Genuine",
+        "score": 0.76,
+        "observation": "Authentic portrait watermark & electrotype verified"
+      },
+      {
+        "feature_name": "number_panel",
+        "status": "Genuine",
+        "score": 0.72,
+        "observation": "Ascending font alignment verified"
+      },
+      {
+        "feature_name": "latent_image",
+        "status": "Genuine",
+        "score": 0.879,
+        "observation": "Intaglio relief pattern verified"
+      }
+    ],
+    "raw_img_path": "C:\\Projects\\Antigravity\\Deep Learning\\currency-detector\\data\\scan_history\\images\\SCAN_20261103_230615_802d6f_raw.jpg",
+    "annotated_img_path": "C:\\Projects\\Antigravity\\Deep Learning\\currency-detector\\data\\scan_history\\images\\SCAN_20261103_230615_802d6f_annotated.jpg",
+    "gradcam_img_path": "C:\\Projects\\Antigravity\\Deep Learning\\currency-detector\\data\\scan_history\\images\\SCAN_20261103_230615_802d6f_gradcam.jpg"
+  },
+  {
+    "id": "SCAN_20261103_230443_c054ee",
+    "timestamp": "2026-11-03 23:04:43",
+    "date_label": "03 Nov 2026, 11:04 PM",
+    "verdict": "GENUINE",
+    "authenticity_score": 0.762,
+    "verdict_confidence": 0.762,
+    "predicted_denomination": 50,
+    "denomination_confidence": 0.17940475046634674,
+    "color": "#10B981",
+    "forensic_flags": [],
+    "feature_summary": [
+      {
+        "feature_name": "security_thread",
+        "status": "Genuine",
+        "score": 0.88,
+        "observation": "Verified: Continuous metallic ribbon (57% continuity at 50.0% width)"
+      },
+      {
+        "feature_name": "watermark",
+        "status": "Genuine",
+        "score": 0.75,
+        "observation": "Authentic portrait watermark & electrotype verified"
+      },
+      {
+        "feature_name": "number_panel",
+        "status": "Genuine",
+        "score": 0.72,
+        "observation": "Ascending font alignment verified"
+      },
+      {
+        "feature_name": "latent_image",
+        "status": "Genuine",
+        "score": 0.7,
+        "observation": "Intaglio relief pattern verified"
+      }
+    ],
+    "raw_img_path": "C:\\Projects\\Antigravity\\Deep Learning\\currency-detector\\data\\scan_history\\images\\SCAN_20261103_230443_c054ee_raw.jpg",
+    "annotated_img_path": "C:\\Projects\\Antigravity\\Deep Learning\\currency-detector\\data\\scan_history\\images\\SCAN_20261103_230443_c054ee_annotated.jpg",
+    "gradcam_img_path": "C:\\Projects\\Antigravity\\Deep Learning\\currency-detector\\data\\scan_history\\images\\SCAN_20261103_230443_c054ee_gradcam.jpg"
+  },
+  {
+    "id": "SCAN_20261103_230442_999250",
+    "timestamp": "2026-11-03 23:04:42",
+    "date_label": "03 Nov 2026, 11:04 PM",
+    "verdict": "GENUINE",
+    "authenticity_score": 0.762,
+    "verdict_confidence": 0.762,
+    "predicted_denomination": 50,
+    "denomination_confidence": 0.18560728430747986,
+    "color": "#10B981",
+    "forensic_flags": [],
+    "feature_summary": [
+      {
+        "feature_name": "security_thread",
+        "status": "Genuine",
+        "score": 0.88,
+        "observation": "Verified: Continuous metallic ribbon (83% continuity at 54.0% width)"
+      },
+      {
+        "feature_name": "watermark",
+        "status": "Genuine",
+        "score": 0.75,
+        "observation": "Authentic portrait watermark & electrotype verified"
+      },
+      {
+        "feature_name": "number_panel",
+        "status": "Genuine",
+        "score": 0.72,
+        "observation": "Ascending font alignment verified"
+      },
+      {
+        "feature_name": "latent_image",
+        "status": "Genuine",
+        "score": 0.7,
+        "observation": "Intaglio relief pattern verified"
+      }
+    ],
+    "raw_img_path": "C:\\Projects\\Antigravity\\Deep Learning\\currency-detector\\data\\scan_history\\images\\SCAN_20261103_230442_999250_raw.jpg",
+    "annotated_img_path": "C:\\Projects\\Antigravity\\Deep Learning\\currency-detector\\data\\scan_history\\images\\SCAN_20261103_230442_999250_annotated.jpg",
+    "gradcam_img_path": "C:\\Projects\\Antigravity\\Deep Learning\\currency-detector\\data\\scan_history\\images\\SCAN_20261103_230442_999250_gradcam.jpg"
+  }
+]

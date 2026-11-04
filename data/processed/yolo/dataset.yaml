@@ -1,0 +1,10 @@
+path: C:/Projects/Antigravity/Deep Learning/currency-detector/data/processed/yolo
+train: images/train
+val: images/val
+test: images/test
+names:
+  0: watermark
+  1: security_thread
+  2: latent_image
+  3: number_panel
+nc: 4

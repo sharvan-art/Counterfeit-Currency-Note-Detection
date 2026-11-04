@@ -1,0 +1,74 @@
+project:
+  name: "Counterfeit Currency Note Detection - Multi-Stage Pipeline"
+  version: "1.0.0"
+  random_seed: 42
+
+data:
+  denominations: [10, 20, 50, 100, 200, 500, 2000]
+  raw_dir: "data/raw"
+  processed_dir: "data/processed"
+  augmented_dir: "data/augmented"
+  synthetic_fake_dir: "data/synthetic_fake"
+  splits_dir: "data/processed/splits"
+  train_split: 0.70
+  val_split: 0.15
+  test_split: 0.15
+  image_size: [640, 640]
+  batch_size: 16
+  num_workers: 4
+
+security_features:
+  classes:
+    - watermark
+    - security_thread
+    - latent_image
+    - number_panel
+
+synthetic_generator:
+  defect_types:
+    - blur_watermark
+    - remove_watermark
+    - shift_security_thread
+    - remove_security_thread
+    - alter_color_shift_patch
+    - degrade_microtext
+    - misalign_number_panel
+  defect_intensity_range: [0.4, 0.9]
+  synthetic_tag: true
+
+detection:
+  model_type: "yolov8m.pt"
+  epochs: 50
+  batch_size: 16
+  imgsz: 640
+  lr0: 0.01
+  save_dir: "models/detection"
+
+classification:
+  backbones:
+    - "resnet18"
+    - "efficientnet_b0"
+  selected_backbone: "resnet18"
+  freeze_epochs: 5
+  unfreeze_epochs: 25
+  base_lr: 0.001
+  head_lr: 0.01
+  save_dir: "models/classification"
+
+fusion:
+  hidden_dim: 64
+  dropout: 0.3
+  epochs: 30
+  lr: 0.001
+  save_dir: "models/fusion"
+
+explainability:
+  target_layers:
+    resnet18: "layer4"
+    efficientnet_b0: "conv_head"
+  output_dir: "reports/figures/gradcam"
+
+webapp:
+  host: "0.0.0.0"
+  port: 8501
+  theme: "professional_dark_teal"

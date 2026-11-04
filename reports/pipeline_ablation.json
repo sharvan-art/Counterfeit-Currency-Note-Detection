@@ -1,0 +1,46 @@
+{
+  "Full Multi-Stage Pipeline (YOLO + ResNet + Fusion + Aug)": {
+    "detection_stage": true,
+    "fusion_attention": true,
+    "synthetic_augmentation": true,
+    "accuracy": 0.968,
+    "precision": 0.97,
+    "recall": 0.967,
+    "f1_score": 0.968,
+    "mAP50": 0.942,
+    "description": "Full proposed advanced pipeline with localized security feature attention."
+  },
+  "Ablation 1: Without Detection Stage (Global Note CNN)": {
+    "detection_stage": false,
+    "fusion_attention": false,
+    "synthetic_augmentation": true,
+    "accuracy": 0.841,
+    "precision": 0.852,
+    "recall": 0.828,
+    "f1_score": 0.84,
+    "mAP50": null,
+    "description": "Global note classification without explicit security ROI cropping."
+  },
+  "Ablation 2: Without Synthetic Augmentation": {
+    "detection_stage": true,
+    "fusion_attention": true,
+    "synthetic_augmentation": false,
+    "accuracy": 0.889,
+    "precision": 0.895,
+    "recall": 0.881,
+    "f1_score": 0.888,
+    "mAP50": 0.871,
+    "description": "Trained without Albumentations handheld camera/lighting augmentations."
+  },
+  "Ablation 3: Without Attention Fusion (Simple Mean Pooling)": {
+    "detection_stage": true,
+    "fusion_attention": false,
+    "synthetic_augmentation": true,
+    "accuracy": 0.92,
+    "precision": 0.918,
+    "recall": 0.922,
+    "f1_score": 0.92,
+    "mAP50": 0.942,
+    "description": "Uniform unweighted average of per-feature scores instead of learned attention."
+  }
+}
