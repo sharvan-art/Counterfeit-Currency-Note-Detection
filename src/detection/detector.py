@@ -44,50 +44,73 @@ class BanknoteCropper:
         h, w = image.shape[:2]
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY) if len(image.shape) == 3 else image
 
-        # 1. First: Intelligent color-saturation & texture segmentation for handheld photos
-        # When taken by hand on tables, bedsheets, or floors, the background is neutral/greyish,
-        # while Indian banknotes have rich characteristic dye saturation (orange, magenta, green, blue).
-        x1, y1, x2, y2 = 0, 0, w, h
-        found_handheld_crop = False
+        # 1. Intelligent Color Saturation Segmentation + Perspective Deskewing
+        # Handles photos taken by hand from ANY rotation, angle, or background surface (tables, bedsheets, floors).
+        found_deskew = False
+        note_crop = None
+        crop_bbox = (0, 0, w, h)
+        was_rotated = False
 
         if len(image.shape) == 3:
             hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
             s_chan = hsv[:, :, 1]
             # Otsu thresholding on saturation channel
             _, thresh_s = cv2.threshold(s_chan, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-            k = cv2.getStructuringElement(cv2.MORPH_RECT, (15, 15))
+            k = cv2.getStructuringElement(cv2.MORPH_RECT, (11, 11))
             closed_s = cv2.morphologyEx(thresh_s, cv2.MORPH_CLOSE, k, iterations=3)
             opened_s = cv2.morphologyEx(closed_s, cv2.MORPH_OPEN, k, iterations=2)
-            
+
             cnts, _ = cv2.findContours(opened_s, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
             candidates = []
             for c in cnts:
                 area = cv2.contourArea(c)
-                if area > (h * w * 0.08):
-                    bx, by, bw, bh = cv2.boundingRect(c)
-                    aspect = max(bw, bh) / max(1, min(bw, bh))
+                if area > (h * w * 0.06):
+                    rect = cv2.minAreaRect(c)
+                    rw, rh = rect[1]
+                    aspect = max(rw, rh) / max(1.0, min(rw, rh))
                     if 1.4 <= aspect <= 3.2:
-                        candidates.append((area, (bx, by, bw, bh)))
+                        candidates.append((area, c, rect))
 
             if candidates:
                 best_cand = max(candidates, key=lambda c: c[0])
-                bx, by, bw, bh = best_cand[1]
-                # If the candidate doesn't cover the entire frame (meaning background was successfully found)
-                if bw < w * 0.96 or bh < h * 0.96:
-                    pad_x = int(bw * 0.02)
-                    pad_y = int(bh * 0.02)
-                    x1 = max(0, bx - pad_x)
-                    y1 = max(0, by - pad_y)
-                    x2 = min(w, bx + bw + pad_x)
-                    y2 = min(h, by + bh + pad_y)
-                    found_handheld_crop = True
+                rect = best_cand[2]
+                box = cv2.boxPoints(rect)
+                pts = np.array(box, dtype=np.float32)
 
-        if not found_handheld_crop:
+                # Order 4 points: top-left, top-right, bottom-right, bottom-left
+                y_sorted = pts[np.argsort(pts[:, 1]), :]
+                top_two = y_sorted[:2, :]
+                bot_two = y_sorted[2:, :]
+                tl = top_two[np.argmin(top_two[:, 0])]
+                tr = top_two[np.argmax(top_two[:, 0])]
+                bl = bot_two[np.argmin(bot_two[:, 0])]
+                br = bot_two[np.argmax(bot_two[:, 0])]
+
+                width_a = np.linalg.norm(br - bl)
+                width_b = np.linalg.norm(tr - tl)
+                max_w = max(int(width_a), int(width_b))
+
+                height_a = np.linalg.norm(tr - br)
+                height_b = np.linalg.norm(tl - bl)
+                max_h = max(int(height_a), int(height_b))
+
+                if max_w >= 100 and max_h >= 50:
+                    dst_pts = np.array([
+                        [0, 0],
+                        [max_w - 1, 0],
+                        [max_w - 1, max_h - 1],
+                        [0, max_h - 1]
+                    ], dtype=np.float32)
+
+                    M = cv2.getPerspectiveTransform(np.array([tl, tr, br, bl], dtype=np.float32), dst_pts)
+                    note_crop = cv2.warpPerspective(image, M, (max_w, max_h), flags=cv2.INTER_CUBIC)
+                    found_deskew = True
+
+        if not found_deskew:
             # 2. Fallback: Strip black letterbox bars if present (luminance thresholding)
             row_means = gray.mean(axis=1)
             col_means = gray.mean(axis=0)
 
-            # Valid rows/cols have significant non-black content
             non_dark_rows = np.where(row_means > 22)[0]
             non_dark_cols = np.where(col_means > 22)[0]
 
@@ -97,37 +120,17 @@ class BanknoteCropper:
             else:
                 ry1, ry2, rx1, rx2 = 0, h - 1, 0, w - 1
 
-            trimmed_h = ry2 - ry1 + 1
-            trimmed_w = rx2 - rx1 + 1
+            x1, y1, x2, y2 = rx1, ry1, rx2 + 1, ry2 + 1
+            note_crop = image[y1:y2, x1:x2].copy()
+            crop_bbox = (x1, y1, x2, y2)
 
-            if trimmed_h < h * 0.95 or trimmed_w < w * 0.95:
-                x1, y1, x2, y2 = rx1, ry1, rx2 + 1, ry2 + 1
-            else:
-                blurred = cv2.GaussianBlur(gray, (7, 7), 0)
-                thresh = cv2.adaptiveThreshold(
-                    blurred, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
-                    cv2.THRESH_BINARY_INV, 25, 4
-                )
-                contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-                if contours:
-                    valid_cnts = [c for c in contours if cv2.contourArea(c) > (h * w * 0.20)]
-                    if valid_cnts:
-                        best_cnt = max(valid_cnts, key=cv2.contourArea)
-                        bx, by, bw, bh = cv2.boundingRect(best_cnt)
-                        x1, y1, x2, y2 = bx, by, bx + bw, by + bh
-
-        # Extract banknote crop
-        note_crop = image[y1:y2, x1:x2].copy()
+        # 3. Banknote Orientation: Ensure landscape (horizontal)
         nh, nw = note_crop.shape[:2]
-
-        # 2. Banknote Orientation: Indian currency notes are ALWAYS horizontal (landscape)
-        # Length-to-height ratio is always > 1.8
-        was_rotated = False
         if nh > nw:
             note_crop = cv2.rotate(note_crop, cv2.ROTATE_90_CLOCKWISE)
             was_rotated = True
 
-        return note_crop, (x1, y1, x2, y2), was_rotated
+        return note_crop, crop_bbox, was_rotated
 
 
 class SecurityFeatureDetector:

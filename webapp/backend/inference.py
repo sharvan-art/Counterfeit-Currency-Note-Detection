@@ -113,19 +113,9 @@ class BanknoteInferenceEngine:
         else:
             raise ValueError("Unsupported image input format.")
 
-    def run_inference(self, img_input: Any) -> Dict[str, Any]:
-        """
-        Executes complete multi-stage inference pipeline on single banknote image:
-        1. Auto-crops banknote from black/white padding or background.
-        2. Auto-orients to horizontal landscape.
-        3. Precisely locates security features (thread, watermark, number panel, latent image).
-        4. Runs forensic verification + deep learning classification.
-        5. Computes transparent authenticity verdict and Grad-CAM salience map.
-        """
-        raw_rgb = self.preprocess_image(img_input)
-
+    def _run_single_inference(self, raw_bgr: np.ndarray) -> Dict[str, Any]:
+        """Executes multi-stage feature extraction on a single orientation candidate."""
         # Stage 1: Detect banknote contour & locate features
-        raw_bgr = cv2.cvtColor(raw_rgb, cv2.COLOR_RGB2BGR)
         det_res = self.detector.detect_and_crop(raw_bgr)
 
         cropped_note_bgr = det_res["cropped_banknote"]
@@ -230,7 +220,7 @@ class BanknoteInferenceEngine:
                 diff_h = np.diff(patch_gray.astype(float), axis=1)
                 diff_v = np.diff(patch_gray.astype(float), axis=0)
                 step_discontinuity = float(np.std(diff_v) / max(1.0, np.std(diff_h)))
-                if (step_discontinuity > 1.65 and cnn_score < 0.40) or (cnn_score < 0.20):
+                if (step_discontinuity > 1.85 and cnn_score < 0.40) or (cnn_score < 0.12):
                     is_suspicious = True
                     forensic_score = 0.28
                     observation = "Serial numbers misaligned / sliced"
@@ -317,6 +307,69 @@ class BanknoteInferenceEngine:
             "raw_input_image": cropped_note_rgb,
             "forensic_flags": forensic_flags
         }
+
+    def is_upright_orientation(self, note_bgr: np.ndarray) -> bool:
+        """
+        Determines whether a horizontal banknote is in normal upright orientation (0°)
+        or inverted upside-down (180°).
+        Uses anatomical Gandhi portrait luminance distribution (head vs chest)
+        combined with ResNet18 denomination confidence gating.
+        """
+        h, w = note_bgr.shape[:2]
+        gray = cv2.cvtColor(note_bgr, cv2.COLOR_BGR2GRAY)
+
+        # 1. Gandhi Head vs Chest (Gandhi is upright -> bald head is brighter than chest/shawl folds)
+        g_head = gray[int(0.15 * h):int(0.45 * h), int(0.28 * w):int(0.52 * w)]
+        g_chest = gray[int(0.50 * h):int(0.80 * h), int(0.28 * w):int(0.52 * w)]
+        g_diff_0 = float(g_head.mean()) - float(g_chest.mean())
+
+        gray_180 = cv2.rotate(gray, cv2.ROTATE_180)
+        g_head_180 = gray_180[int(0.15 * h):int(0.45 * h), int(0.28 * w):int(0.52 * w)]
+        g_chest_180 = gray_180[int(0.50 * h):int(0.80 * h), int(0.28 * w):int(0.52 * w)]
+        g_diff_180 = float(g_head_180.mean()) - float(g_chest_180.mean())
+
+        # 2. ResNet Denomination probability
+        mean = np.array([0.485, 0.456, 0.406], dtype=np.float32)
+        std = np.array([0.229, 0.224, 0.225], dtype=np.float32)
+
+        def get_denom_conf(im_bgr):
+            rgb = cv2.cvtColor(im_bgr, cv2.COLOR_BGR2RGB)
+            res_224 = cv2.resize(rgb, (224, 224))
+            norm = (res_224.astype(np.float32) / 255.0 - mean) / std
+            t = torch.from_numpy(norm.transpose(2, 0, 1)).unsqueeze(0).float().to(self.device)
+            with torch.no_grad():
+                out = self.classifier(t)
+                denom = torch.softmax(out["denom_logits"], dim=1)[0].cpu().numpy()
+            return float(np.max(denom))
+
+        d0 = get_denom_conf(note_bgr)
+        d180 = get_denom_conf(cv2.rotate(note_bgr, cv2.ROTATE_180))
+
+        score_0 = (g_diff_0 * 0.1) + (d0 * 2.0)
+        score_180 = (g_diff_180 * 0.1) + (d180 * 2.0)
+        return score_0 >= score_180
+
+    def run_inference(self, img_input: Any) -> Dict[str, Any]:
+        """
+        Executes complete omnidirectional multi-stage inference pipeline on single banknote image:
+        1. Auto-crops and perspective-deskews banknote at ANY arbitrary rotation angle or tilt.
+        2. Automatically tests and ensures true upright orientation (0° vs 180°).
+        3. Precisely locates security features (thread, watermark, number panel, latent image).
+        4. Runs forensic verification + deep learning classification.
+        5. Computes transparent authenticity verdict and Grad-CAM salience map.
+        """
+        raw_rgb = self.preprocess_image(img_input)
+        raw_bgr = cv2.cvtColor(raw_rgb, cv2.COLOR_RGB2BGR)
+
+        # 1. Perspective deskew & crop
+        cropped_note_bgr, _, _ = BanknoteCropper.crop_and_orient(raw_bgr)
+
+        # 2. Automatically orient to upright (0°)
+        if not self.is_upright_orientation(cropped_note_bgr):
+            cropped_note_bgr = cv2.rotate(cropped_note_bgr, cv2.ROTATE_180)
+
+        # 3. Run full multi-stage forensic evaluation on the upright cropped banknote
+        return self._run_single_inference(cropped_note_bgr)
 
 
 if __name__ == "__main__":
