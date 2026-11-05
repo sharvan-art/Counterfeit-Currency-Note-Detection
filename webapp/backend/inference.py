@@ -27,7 +27,7 @@ if str(PROJECT_ROOT) not in sys.path:
 from typing import Dict, List, Any, Tuple, Optional
 import cv2
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageOps
 import torch
 import pymupdf
 
@@ -95,14 +95,17 @@ class BanknoteInferenceEngine:
         return images
 
     def preprocess_image(self, img_input: Any) -> np.ndarray:
-        """Converts PIL, Bytes, or ndarray into uint8 RGB numpy image."""
+        """Converts PIL, Bytes, or ndarray into uint8 RGB numpy image, correcting phone EXIF orientation."""
         if isinstance(img_input, bytes):
-            pil_img = Image.open(io.BytesIO(img_input)).convert("RGB")
+            pil_img = Image.open(io.BytesIO(img_input))
+            pil_img = ImageOps.exif_transpose(pil_img).convert("RGB")
             return np.array(pil_img)
         elif isinstance(img_input, Image.Image):
-            return np.array(img_input.convert("RGB"))
+            pil_img = ImageOps.exif_transpose(img_input).convert("RGB")
+            return np.array(pil_img)
         elif isinstance(img_input, (str, Path)):
-            pil_img = Image.open(str(img_input)).convert("RGB")
+            pil_img = Image.open(str(img_input))
+            pil_img = ImageOps.exif_transpose(pil_img).convert("RGB")
             return np.array(pil_img)
         elif isinstance(img_input, np.ndarray):
             if len(img_input.shape) == 2:
@@ -307,42 +310,23 @@ class BanknoteInferenceEngine:
         """
         Determines whether a horizontal banknote is in normal upright orientation (0°)
         or inverted upside-down (180°).
-        Uses anatomical Gandhi portrait luminance distribution (head vs chest)
-        combined with ResNet18 denomination confidence gating.
+        Uses physical RBI banknote design invariants:
+        - Top Header Text vs Bottom Margin Sobel-X Energy:
+          The top 20% contains dense intaglio text ('RESERVE BANK OF INDIA' / 'भारतीय रिज़र्व बैंक')
+          with high vertical edge stroke frequency across the entire note width.
+          The bottom 20% contains legal tender disclaimer or margin with substantially lower edge energy.
         """
         h, w = note_bgr.shape[:2]
         gray = cv2.cvtColor(note_bgr, cv2.COLOR_BGR2GRAY)
 
-        # 1. Gandhi Head vs Chest (Gandhi is upright -> bald head is brighter than chest/shawl folds)
-        g_head = gray[int(0.15 * h):int(0.45 * h), int(0.28 * w):int(0.52 * w)]
-        g_chest = gray[int(0.50 * h):int(0.80 * h), int(0.28 * w):int(0.52 * w)]
-        g_diff_0 = float(g_head.mean()) - float(g_chest.mean())
+        # Sample top and bottom text bands across the banknote width
+        top_bar = gray[:int(0.20 * h), int(0.06 * w):int(0.94 * w)]
+        bot_bar = gray[int(0.80 * h):, int(0.06 * w):int(0.94 * w)]
 
-        gray_180 = cv2.rotate(gray, cv2.ROTATE_180)
-        g_head_180 = gray_180[int(0.15 * h):int(0.45 * h), int(0.28 * w):int(0.52 * w)]
-        g_chest_180 = gray_180[int(0.50 * h):int(0.80 * h), int(0.28 * w):int(0.52 * w)]
-        g_diff_180 = float(g_head_180.mean()) - float(g_chest_180.mean())
+        top_sobel = float(np.abs(cv2.Sobel(top_bar, cv2.CV_64F, 1, 0)).mean())
+        bot_sobel = float(np.abs(cv2.Sobel(bot_bar, cv2.CV_64F, 1, 0)).mean())
 
-        # 2. ResNet Denomination probability
-        mean = np.array([0.485, 0.456, 0.406], dtype=np.float32)
-        std = np.array([0.229, 0.224, 0.225], dtype=np.float32)
-
-        def get_denom_conf(im_bgr):
-            rgb = cv2.cvtColor(im_bgr, cv2.COLOR_BGR2RGB)
-            res_224 = cv2.resize(rgb, (224, 224))
-            norm = (res_224.astype(np.float32) / 255.0 - mean) / std
-            t = torch.from_numpy(norm.transpose(2, 0, 1)).unsqueeze(0).float().to(self.device)
-            with torch.no_grad():
-                out = self.classifier(t)
-                denom = torch.softmax(out["denom_logits"], dim=1)[0].cpu().numpy()
-            return float(np.max(denom))
-
-        d0 = get_denom_conf(note_bgr)
-        d180 = get_denom_conf(cv2.rotate(note_bgr, cv2.ROTATE_180))
-
-        score_0 = (g_diff_0 * 0.1) + (d0 * 2.0)
-        score_180 = (g_diff_180 * 0.1) + (d180 * 2.0)
-        return score_0 >= score_180
+        return top_sobel >= bot_sobel
 
     def run_inference(self, img_input: Any) -> Dict[str, Any]:
         """
