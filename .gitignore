@@ -55,3 +55,7 @@ ehthumbs.db
 debug_*.png
 test_*.png
 test_*.jpg
+
+# Scan history user uploads
+data/scan_history/images/*
+!data/scan_history/images/.gitkeep

@@ -44,43 +44,77 @@ class BanknoteCropper:
         h, w = image.shape[:2]
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY) if len(image.shape) == 3 else image
 
-        # 1. Strip black letterbox bars if present (luminance thresholding)
-        row_means = gray.mean(axis=1)
-        col_means = gray.mean(axis=0)
+        # 1. First: Intelligent color-saturation & texture segmentation for handheld photos
+        # When taken by hand on tables, bedsheets, or floors, the background is neutral/greyish,
+        # while Indian banknotes have rich characteristic dye saturation (orange, magenta, green, blue).
+        x1, y1, x2, y2 = 0, 0, w, h
+        found_handheld_crop = False
 
-        # Valid rows/cols have significant non-black content
-        non_dark_rows = np.where(row_means > 22)[0]
-        non_dark_cols = np.where(col_means > 22)[0]
+        if len(image.shape) == 3:
+            hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+            s_chan = hsv[:, :, 1]
+            # Otsu thresholding on saturation channel
+            _, thresh_s = cv2.threshold(s_chan, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+            k = cv2.getStructuringElement(cv2.MORPH_RECT, (15, 15))
+            closed_s = cv2.morphologyEx(thresh_s, cv2.MORPH_CLOSE, k, iterations=3)
+            opened_s = cv2.morphologyEx(closed_s, cv2.MORPH_OPEN, k, iterations=2)
+            
+            cnts, _ = cv2.findContours(opened_s, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            candidates = []
+            for c in cnts:
+                area = cv2.contourArea(c)
+                if area > (h * w * 0.08):
+                    bx, by, bw, bh = cv2.boundingRect(c)
+                    aspect = max(bw, bh) / max(1, min(bw, bh))
+                    if 1.4 <= aspect <= 3.2:
+                        candidates.append((area, (bx, by, bw, bh)))
 
-        if len(non_dark_rows) > 0 and len(non_dark_cols) > 0:
-            ry1, ry2 = non_dark_rows[0], non_dark_rows[-1]
-            rx1, rx2 = non_dark_cols[0], non_dark_cols[-1]
-        else:
-            ry1, ry2, rx1, rx2 = 0, h - 1, 0, w - 1
+            if candidates:
+                best_cand = max(candidates, key=lambda c: c[0])
+                bx, by, bw, bh = best_cand[1]
+                # If the candidate doesn't cover the entire frame (meaning background was successfully found)
+                if bw < w * 0.96 or bh < h * 0.96:
+                    pad_x = int(bw * 0.02)
+                    pad_y = int(bh * 0.02)
+                    x1 = max(0, bx - pad_x)
+                    y1 = max(0, by - pad_y)
+                    x2 = min(w, bx + bw + pad_x)
+                    y2 = min(h, by + bh + pad_y)
+                    found_handheld_crop = True
 
-        # Check if non-dark region is significantly smaller than full frame (letterbox detected)
-        trimmed_h = ry2 - ry1 + 1
-        trimmed_w = rx2 - rx1 + 1
+        if not found_handheld_crop:
+            # 2. Fallback: Strip black letterbox bars if present (luminance thresholding)
+            row_means = gray.mean(axis=1)
+            col_means = gray.mean(axis=0)
 
-        if trimmed_h < h * 0.95 or trimmed_w < w * 0.95:
-            # Letterboxing or black margins detected
-            x1, y1, x2, y2 = rx1, ry1, rx2 + 1, ry2 + 1
-        else:
-            # Try contour-based extraction for white desk / background
-            blurred = cv2.GaussianBlur(gray, (7, 7), 0)
-            thresh = cv2.adaptiveThreshold(
-                blurred, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
-                cv2.THRESH_BINARY_INV, 25, 4
-            )
-            contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            # Valid rows/cols have significant non-black content
+            non_dark_rows = np.where(row_means > 22)[0]
+            non_dark_cols = np.where(col_means > 22)[0]
 
-            x1, y1, x2, y2 = 0, 0, w, h
-            if contours:
-                valid_cnts = [c for c in contours if cv2.contourArea(c) > (h * w * 0.20)]
-                if valid_cnts:
-                    best_cnt = max(valid_cnts, key=cv2.contourArea)
-                    bx, by, bw, bh = cv2.boundingRect(best_cnt)
-                    x1, y1, x2, y2 = bx, by, bx + bw, by + bh
+            if len(non_dark_rows) > 0 and len(non_dark_cols) > 0:
+                ry1, ry2 = non_dark_rows[0], non_dark_rows[-1]
+                rx1, rx2 = non_dark_cols[0], non_dark_cols[-1]
+            else:
+                ry1, ry2, rx1, rx2 = 0, h - 1, 0, w - 1
+
+            trimmed_h = ry2 - ry1 + 1
+            trimmed_w = rx2 - rx1 + 1
+
+            if trimmed_h < h * 0.95 or trimmed_w < w * 0.95:
+                x1, y1, x2, y2 = rx1, ry1, rx2 + 1, ry2 + 1
+            else:
+                blurred = cv2.GaussianBlur(gray, (7, 7), 0)
+                thresh = cv2.adaptiveThreshold(
+                    blurred, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+                    cv2.THRESH_BINARY_INV, 25, 4
+                )
+                contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                if contours:
+                    valid_cnts = [c for c in contours if cv2.contourArea(c) > (h * w * 0.20)]
+                    if valid_cnts:
+                        best_cnt = max(valid_cnts, key=cv2.contourArea)
+                        bx, by, bw, bh = cv2.boundingRect(best_cnt)
+                        x1, y1, x2, y2 = bx, by, bx + bw, by + bh
 
         # Extract banknote crop
         note_crop = image[y1:y2, x1:x2].copy()

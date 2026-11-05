@@ -240,13 +240,19 @@ class BanknoteInferenceEngine:
                     observation = "Ascending font alignment verified"
 
             elif fn == "latent_image":
-                if cnn_score < 0.30:
+                # Real banknotes photographed at normal eye level / hand capture will NOT show
+                # the latent 200 numeral because latent images only reveal under 45-degree angled lighting!
+                # We verify the intaglio relief texture (Laplacian microtext & guilloche pattern sharpness).
+                latent_var = float(cv2.Laplacian(patch_gray, cv2.CV_64F).var())
+                if latent_var < 40.0 and cnn_score < 0.20:
                     is_suspicious = True
                     forensic_score = 0.30
-                    observation = "Latent numeral pattern degraded"
+                    observation = "Latent numeral pattern degraded / washed out"
+                    forensic_flags.append("Latent image texture smoothed or missing")
                 else:
-                    forensic_score = max(0.70, cnn_score)
-                    observation = "Intaglio relief pattern verified"
+                    # Intaglio micro-print relief pattern is intact
+                    forensic_score = max(0.72, cnn_score)
+                    observation = f"Intaglio relief pattern verified (texture sharpness: {latent_var:.1f})"
 
             status = "Suspicious" if is_suspicious or forensic_score < 0.50 else "Genuine"
 
