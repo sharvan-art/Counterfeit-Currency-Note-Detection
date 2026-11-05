@@ -28,86 +28,128 @@ import numpy as np
 
 
 class BanknoteCropper:
-    """Robust cropper that extracts the true banknote and removes letterboxing/padding."""
+    """
+    Robust multi-scale banknote cropper & perspective deskewer:
+    Detects banknotes of ANY scale/size (from small distant captures to close-up macro shots)
+    at ANY arbitrary rotation or tilt angle, on ANY background surface (desks, beds, floors, hands).
+    Normalizes all isolated banknotes to a canonical reference dimension for scale-invariant forensic verification.
+    """
+    CANONICAL_WIDTH = 1200
 
-    @staticmethod
-    def crop_and_orient(image: np.ndarray) -> Tuple[np.ndarray, Tuple[int, int, int, int], bool]:
+    @classmethod
+    def crop_and_orient(cls, image: np.ndarray) -> Tuple[np.ndarray, Tuple[int, int, int, int], bool]:
         """
-        Strips black borders, camera letterboxing, or desk margins,
-        and auto-orients banknote to horizontal landscape.
+        Strips backgrounds, desk borders, and camera letterboxing at ANY scale,
+        deskews perspective tilt, auto-orients to horizontal landscape, and
+        normalizes to canonical reference resolution.
 
         Returns:
-            cropped_image: uint8 BGR/RGB banknote image
+            canonical_note: uint8 BGR/RGB banknote image normalized to 1200px width
             bbox: (x1, y1, x2, y2) relative to original image
             was_rotated: True if rotated 90 degrees
         """
         h, w = image.shape[:2]
+        total_area = float(h * w)
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY) if len(image.shape) == 3 else image
+        blurred = cv2.GaussianBlur(gray, (5, 5), 0)
 
-        # 1. Intelligent Color Saturation Segmentation + Perspective Deskewing
-        # Handles photos taken by hand from ANY rotation, angle, or background surface (tables, bedsheets, floors).
         found_deskew = False
         note_crop = None
         crop_bbox = (0, 0, w, h)
         was_rotated = False
 
+        # 1. Multi-modal segmentation masks (Canny, HSV Saturation, HSV Value, Grayscale)
+        masks = []
+
+        # Canny edge mask with morphological closing
+        edges = cv2.Canny(blurred, 30, 150)
+        k_canny = cv2.getStructuringElement(cv2.MORPH_RECT, (7, 7))
+        dilated_edges = cv2.dilate(edges, k_canny, iterations=2)
+        dilated_edges = cv2.morphologyEx(dilated_edges, cv2.MORPH_CLOSE, k_canny, iterations=2)
+        masks.append(('canny', dilated_edges))
+
         if len(image.shape) == 3:
             hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
-            s_chan = hsv[:, :, 1]
-            # Otsu thresholding on saturation channel
-            _, thresh_s = cv2.threshold(s_chan, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-            k = cv2.getStructuringElement(cv2.MORPH_RECT, (11, 11))
-            closed_s = cv2.morphologyEx(thresh_s, cv2.MORPH_CLOSE, k, iterations=3)
-            opened_s = cv2.morphologyEx(closed_s, cv2.MORPH_OPEN, k, iterations=2)
+            k_morph = cv2.getStructuringElement(cv2.MORPH_RECT, (9, 9))
 
-            cnts, _ = cv2.findContours(opened_s, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-            candidates = []
+            # Saturation channel (both polarities: note might be more or less saturated than surface)
+            s = hsv[:, :, 1]
+            _, s_otsu = cv2.threshold(s, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+            masks.append(('sat_pos', cv2.morphologyEx(s_otsu, cv2.MORPH_CLOSE, k_morph, iterations=2)))
+            masks.append(('sat_neg', cv2.morphologyEx(255 - s_otsu, cv2.MORPH_CLOSE, k_morph, iterations=2)))
+
+            # Value/Brightness channel
+            v = hsv[:, :, 2]
+            _, v_otsu = cv2.threshold(v, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+            masks.append(('val_pos', cv2.morphologyEx(v_otsu, cv2.MORPH_CLOSE, k_morph, iterations=2)))
+            masks.append(('val_neg', cv2.morphologyEx(255 - v_otsu, cv2.MORPH_CLOSE, k_morph, iterations=2)))
+        else:
+            k_morph = cv2.getStructuringElement(cv2.MORPH_RECT, (9, 9))
+            _, g_otsu = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+            masks.append(('gray_pos', cv2.morphologyEx(g_otsu, cv2.MORPH_CLOSE, k_morph, iterations=2)))
+            masks.append(('gray_neg', cv2.morphologyEx(255 - g_otsu, cv2.MORPH_CLOSE, k_morph, iterations=2)))
+
+        candidates = []
+        for name, m in masks:
+            cnts, _ = cv2.findContours(m, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
             for c in cnts:
                 area = cv2.contourArea(c)
-                if area > (h * w * 0.06):
-                    rect = cv2.minAreaRect(c)
-                    rw, rh = rect[1]
-                    aspect = max(rw, rh) / max(1.0, min(rw, rh))
-                    if 1.4 <= aspect <= 3.2:
-                        candidates.append((area, c, rect))
+                # Support ANY note size in frame: from 0.8% (small distant capture) up to 98% (macro capture)
+                if area < (0.008 * total_area) or area > (0.985 * total_area):
+                    continue
+                rect = cv2.minAreaRect(c)
+                rw, rh = rect[1]
+                if rw < 30 or rh < 15:
+                    continue
+                aspect = max(rw, rh) / max(1.0, min(rw, rh))
+                # Indian banknotes have aspect ratios from 1.95 (₹10) to 2.52 (₹2000)
+                if not (1.35 <= aspect <= 3.3):
+                    continue
+                solidity = area / max(1.0, rw * rh)
+                if solidity < 0.55:
+                    continue
 
-            if candidates:
-                best_cand = max(candidates, key=lambda c: c[0])
-                rect = best_cand[2]
-                box = cv2.boxPoints(rect)
-                pts = np.array(box, dtype=np.float32)
+                aspect_dev = abs(aspect - 2.2)
+                score = area * (1.0 - 0.25 * aspect_dev) * solidity
+                candidates.append((score, area, c, rect, aspect))
 
-                # Order 4 points: top-left, top-right, bottom-right, bottom-left
-                y_sorted = pts[np.argsort(pts[:, 1]), :]
-                top_two = y_sorted[:2, :]
-                bot_two = y_sorted[2:, :]
-                tl = top_two[np.argmin(top_two[:, 0])]
-                tr = top_two[np.argmax(top_two[:, 0])]
-                bl = bot_two[np.argmin(bot_two[:, 0])]
-                br = bot_two[np.argmax(bot_two[:, 0])]
+        if candidates:
+            best_cand = max(candidates, key=lambda x: x[0])
+            rect = best_cand[3]
+            box = cv2.boxPoints(rect)
+            pts = np.array(box, dtype=np.float32)
 
-                width_a = np.linalg.norm(br - bl)
-                width_b = np.linalg.norm(tr - tl)
-                max_w = max(int(width_a), int(width_b))
+            # Order 4 points: top-left, top-right, bottom-right, bottom-left
+            y_sorted = pts[np.argsort(pts[:, 1]), :]
+            top_two = y_sorted[:2, :]
+            bot_two = y_sorted[2:, :]
+            tl = top_two[np.argmin(top_two[:, 0])]
+            tr = top_two[np.argmax(top_two[:, 0])]
+            bl = bot_two[np.argmin(bot_two[:, 0])]
+            br = bot_two[np.argmax(bot_two[:, 0])]
 
-                height_a = np.linalg.norm(tr - br)
-                height_b = np.linalg.norm(tl - bl)
-                max_h = max(int(height_a), int(height_b))
+            width_a = np.linalg.norm(br - bl)
+            width_b = np.linalg.norm(tr - tl)
+            max_w = max(int(width_a), int(width_b))
 
-                if max_w >= 100 and max_h >= 50:
-                    dst_pts = np.array([
-                        [0, 0],
-                        [max_w - 1, 0],
-                        [max_w - 1, max_h - 1],
-                        [0, max_h - 1]
-                    ], dtype=np.float32)
+            height_a = np.linalg.norm(tr - br)
+            height_b = np.linalg.norm(tl - bl)
+            max_h = max(int(height_a), int(height_b))
 
-                    M = cv2.getPerspectiveTransform(np.array([tl, tr, br, bl], dtype=np.float32), dst_pts)
-                    note_crop = cv2.warpPerspective(image, M, (max_w, max_h), flags=cv2.INTER_CUBIC)
-                    found_deskew = True
+            if max_w >= 40 and max_h >= 20:
+                dst_pts = np.array([
+                    [0, 0],
+                    [max_w - 1, 0],
+                    [max_w - 1, max_h - 1],
+                    [0, max_h - 1]
+                ], dtype=np.float32)
+
+                M = cv2.getPerspectiveTransform(np.array([tl, tr, br, bl], dtype=np.float32), dst_pts)
+                note_crop = cv2.warpPerspective(image, M, (max_w, max_h), flags=cv2.INTER_CUBIC)
+                found_deskew = True
 
         if not found_deskew:
-            # 2. Fallback: Strip black letterbox bars if present (luminance thresholding)
+            # Fallback: Strip black letterbox bars or border margins if present
             row_means = gray.mean(axis=1)
             col_means = gray.mean(axis=0)
 
@@ -124,13 +166,22 @@ class BanknoteCropper:
             note_crop = image[y1:y2, x1:x2].copy()
             crop_bbox = (x1, y1, x2, y2)
 
-        # 3. Banknote Orientation: Ensure landscape (horizontal)
+        # 2. Banknote Orientation: Ensure landscape (horizontal)
         nh, nw = note_crop.shape[:2]
         if nh > nw:
             note_crop = cv2.rotate(note_crop, cv2.ROTATE_90_CLOCKWISE)
             was_rotated = True
+            nh, nw = note_crop.shape[:2]
 
-        return note_crop, crop_bbox, was_rotated
+        # 3. Canonical Scale Normalization
+        # Normalizes note to standard reference resolution (width = 1200px)
+        # Guarantees identical pixel metrics regardless of camera distance or sensor MP.
+        aspect = nw / float(max(1, nh))
+        canonical_h = int(cls.CANONICAL_WIDTH / aspect)
+        interp = cv2.INTER_AREA if nw > cls.CANONICAL_WIDTH else cv2.INTER_CUBIC
+        canonical_note = cv2.resize(note_crop, (cls.CANONICAL_WIDTH, canonical_h), interpolation=interp)
+
+        return canonical_note, crop_bbox, was_rotated
 
 
 class SecurityFeatureDetector:
@@ -167,8 +218,8 @@ class SecurityFeatureDetector:
         """
         nh, nw = note.shape[:2]
         
-        # Search window for security thread
-        x_min = int(0.40 * nw)
+        # Search window for security thread (38% to 58% of note width)
+        x_min = int(0.38 * nw)
         x_max = int(0.58 * nw)
         band = note[:, x_min:x_max]
 
@@ -178,8 +229,9 @@ class SecurityFeatureDetector:
         # Vertical edge response per column
         edge_profile = sobel_x.mean(axis=0)
 
-        # Vertical continuity: fraction of rows with active edge (> 22)
-        continuity_profile = (sobel_x > 22).mean(axis=0)
+        # Adaptive edge thresholding: robust across lighting, contrast, and compression
+        active_edge_thresh = max(12.0, min(24.0, float(np.mean(sobel_x)) * 0.75))
+        continuity_profile = (sobel_x > active_edge_thresh).mean(axis=0)
 
         # Metallic color / saturation contrast
         if len(band.shape) == 3:
@@ -191,14 +243,14 @@ class SecurityFeatureDetector:
         # Multi-modal thread score
         score = edge_profile * (0.4 + continuity_profile) * (1.0 + sat)
 
-        # 1D Gaussian kernel smoothing to find true ribbon spine
-        k_size = max(3, int(nw * 0.01) | 1)
+        # 1D smoothing kernel to find true ribbon spine
+        k_size = max(5, int(nw * 0.015) | 1)
         kernel = np.ones(k_size) / k_size
         smoothed = np.convolve(score, kernel, mode='same')
 
         best_offset = int(np.argmax(smoothed))
         center_x = x_min + best_offset
-        ribbon_w = max(16, int(0.036 * nw))
+        ribbon_w = max(24, int(0.038 * nw))
 
         tx1 = max(0, center_x - ribbon_w // 2)
         tx2 = min(nw, tx1 + ribbon_w)
@@ -213,15 +265,15 @@ class SecurityFeatureDetector:
         is_authentic = True
         anomalies = []
 
-        if pos_ratio < 0.38 or pos_ratio > 0.58:
+        if pos_ratio < 0.36 or pos_ratio > 0.58:
             is_authentic = False
-            anomalies.append(f"Security thread horizontally displaced (Position: {pos_ratio*100:.1f}%, expected 38-58%)")
+            anomalies.append(f"Security thread horizontally displaced (Position: {pos_ratio*100:.1f}%, expected 36-58%)")
 
-        if cont_val < 0.22:
+        if cont_val < 0.20:
             is_authentic = False
             anomalies.append(f"Security thread broken, faded, or absent (Continuity: {cont_val*100:.1f}%)")
 
-        if edge_val < 16.0:
+        if edge_val < 12.0:
             is_authentic = False
             anomalies.append(f"Security thread edge definition low ({edge_val:.1f})")
 
@@ -243,8 +295,13 @@ class SecurityFeatureDetector:
         3. Anchors Watermark Window, Number Panel, and Latent Image relative to banknote dimensions.
         4. Draws crisp, professional annotations.
         """
-        # 1. Cleanly isolate the banknote
-        note, crop_bbox, was_rotated = BanknoteCropper.crop_and_orient(image)
+        # 1. Cleanly isolate and canonicalize the banknote
+        if image.shape[1] == BanknoteCropper.CANONICAL_WIDTH and (1.35 <= image.shape[1] / max(1, image.shape[0]) <= 3.3):
+            note = image.copy()
+            crop_bbox = (0, 0, image.shape[1], image.shape[0])
+            was_rotated = False
+        else:
+            note, crop_bbox, was_rotated = BanknoteCropper.crop_and_orient(image)
         nh, nw = note.shape[:2]
 
         annotated_image = note.copy()

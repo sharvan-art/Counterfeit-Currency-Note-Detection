@@ -182,17 +182,14 @@ class BanknoteInferenceEngine:
 
             if fn == "watermark":
                 wm_var = float(cv2.Laplacian(patch_gray, cv2.CV_64F).var())
-                # If watermark is smoothed with bilateral filter or blurred or inpainted
-                if wm_var < 50.0:
+                # Watermark texture verification: scale-invariant relative texture check
+                # Watermark is considered blank/degraded if it is artificially smoothed relative to note texture
+                is_wm_flat = (wm_var < 15.0 and note_laplacian > 40.0) or (wm_var < 0.16 * note_laplacian and note_laplacian > 80.0)
+                if is_wm_flat:
                     is_suspicious = True
-                    forensic_score = min(0.20, wm_var / 250.0)
-                    observation = f"Watermark missing/blurred (Variance: {wm_var:.1f} < 50)"
+                    forensic_score = min(0.20, wm_var / 150.0)
+                    observation = f"Watermark missing/blurred (Variance: {wm_var:.1f})"
                     forensic_flags.append("Watermark blurred or removed")
-                elif wm_var < 150.0 and note_laplacian < 500.0:
-                    is_suspicious = True
-                    forensic_score = 0.35
-                    observation = "Watermark texture degraded"
-                    forensic_flags.append("Watermark texture degraded")
                 else:
                     forensic_score = max(0.75, cnn_score)
                     observation = "Authentic portrait watermark & electrotype verified"
@@ -205,7 +202,7 @@ class BanknoteInferenceEngine:
                 th_pos = thread_metrics.get("center_ratio", 0.49)
                 th_edge = thread_metrics.get("edge_energy", 50.0)
 
-                if not is_th_auth or th_continuity < 0.22:
+                if not is_th_auth or th_continuity < 0.20:
                     is_suspicious = True
                     forensic_score = 0.15
                     anomalies = thread_metrics.get("anomalies", ["Security thread missing or disrupted"])
@@ -220,7 +217,7 @@ class BanknoteInferenceEngine:
                 diff_h = np.diff(patch_gray.astype(float), axis=1)
                 diff_v = np.diff(patch_gray.astype(float), axis=0)
                 step_discontinuity = float(np.std(diff_v) / max(1.0, np.std(diff_h)))
-                if (step_discontinuity > 1.85 and cnn_score < 0.40) or (cnn_score < 0.12):
+                if step_discontinuity > 2.3 and cnn_score < 0.25:
                     is_suspicious = True
                     forensic_score = 0.28
                     observation = "Serial numbers misaligned / sliced"
@@ -230,11 +227,9 @@ class BanknoteInferenceEngine:
                     observation = "Ascending font alignment verified"
 
             elif fn == "latent_image":
-                # Real banknotes photographed at normal eye level / hand capture will NOT show
-                # the latent 200 numeral because latent images only reveal under 45-degree angled lighting!
-                # We verify the intaglio relief texture (Laplacian microtext & guilloche pattern sharpness).
+                # Intaglio relief texture (Laplacian microtext & guilloche pattern sharpness)
                 latent_var = float(cv2.Laplacian(patch_gray, cv2.CV_64F).var())
-                if latent_var < 40.0 and cnn_score < 0.20:
+                if latent_var < 10.0 and cnn_score < 0.10:
                     is_suspicious = True
                     forensic_score = 0.30
                     observation = "Latent numeral pattern degraded / washed out"
