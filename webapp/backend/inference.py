@@ -205,14 +205,26 @@ class BanknoteInferenceEngine:
                 th_pos = thread_metrics.get("center_ratio", 0.49)
                 th_edge = thread_metrics.get("edge_energy", 50.0)
 
-                if not is_th_auth or th_continuity < 0.20:
+                # Check metallic color-shifting optical ribbon on ₹500 and ₹2000
+                hsv_th = cv2.cvtColor(patch_bgr, cv2.COLOR_BGR2HSV)
+                h_c, s_c, v_c = hsv_th[:, :, 0], hsv_th[:, :, 1], hsv_th[:, :, 2]
+                metallic_mask = (h_c >= 35) & (h_c <= 100) & (s_c >= 35) & (v_c >= 30)
+                metallic_frac = float(np.mean(metallic_mask))
+
+                is_thread_defect = (not is_th_auth) or (th_continuity < 0.20)
+                if predicted_denom in [500, 2000] and metallic_frac < 0.08:
+                    is_thread_defect = True
+                    anom_list = thread_metrics.setdefault("anomalies", [])
+                    anom_list.append(f"Non-metallic thread / fake toner print (metallic hue {metallic_frac*100:.1f}% < 8.0%)")
+
+                if is_thread_defect:
                     is_suspicious = True
                     forensic_score = 0.15
-                    anomalies = thread_metrics.get("anomalies", ["Security thread missing or disrupted"])
+                    anomalies = thread_metrics.get("anomalies", ["Security thread missing or non-metallic"])
                     observation = f"Defect: {'; '.join(anomalies)}"
                     forensic_flags.extend(anomalies)
                 else:
-                    forensic_score = max(0.88, cnn_score)
+                    forensic_score = max(0.85, cnn_score)
                     observation = f"Verified: Continuous metallic ribbon ({th_continuity*100:.0f}% continuity at {th_pos*100:.1f}% width)"
 
             elif fn == "number_panel":
@@ -269,6 +281,21 @@ class BanknoteInferenceEngine:
             if i < len(attention_weights):
                 feat["attention_weight"] = round(float(attention_weights[i]), 3)
 
+        # Denomination-Specific Optical Security Checks (e.g. ₹500 Optically Variable Ink numeral)
+        if predicted_denom == 500:
+            roi_num = cropped_note_bgr[int(0.60*nh):int(0.76*nh), int(0.65*nw):int(0.83*nw)]
+            b_n, g_n, r_n = cv2.split(roi_num.astype(float))
+            green_dom = np.maximum(0, g_n - np.maximum(r_n, b_n))
+            green_pixels = int(np.sum(green_dom > 22))
+            if green_pixels < 800:
+                flag_msg = f"Optically Variable Ink (OVI) missing: ₹500 numeral lacks genuine green color-shifting ink ({green_pixels} px < 800)"
+                forensic_flags.append(flag_msg)
+                for item in feature_breakdown:
+                    if item["feature_name"] == "number_panel":
+                        item["status"] = "Suspicious"
+                        item["authenticity_score"] = min(item["authenticity_score"], 0.20)
+                        item["observation"] = f"Defect: {flag_msg}"
+
         # Final Forensic Verdict Determination:
         # A banknote is a legal instrument: ALL core security features MUST be genuine.
         suspicious_list = [f for f in feature_breakdown if f["status"] == "Suspicious"]
@@ -276,8 +303,8 @@ class BanknoteInferenceEngine:
         if len(suspicious_list) > 0 or len(forensic_flags) > 0:
             verdict = "SUSPICIOUS / COUNTERFEIT"
             # Min of suspicious scores
-            worst_score = min([f["authenticity_score"] for f in suspicious_list] or [0.30])
-            overall_authenticity = min(0.35, worst_score)
+            worst_score = min([f["authenticity_score"] for f in suspicious_list] or [0.20])
+            overall_authenticity = min(0.25, worst_score)
             verdict_confidence = round(1.0 - overall_authenticity, 3)
             color = "#EF4444"  # Red
         else:
